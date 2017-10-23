@@ -1,0 +1,163 @@
+<developerConceptualDocument
+    xmlns="http://ddue.schemas.microsoft.com/authoring/2003/5"
+    xmlns:xlink="http://www.w3.org/1999/xlink">
+
+  <summary>
+    <para>The CUDA runtime and driver API</para>
+  </summary>
+  <introduction>
+    <para>This document describes the NVIDA interfaces to their Graphics Processing Units.</para>
+  </introduction>
+  <section>
+    <title>Overview</title>
+    <content>
+      <para>
+        One artifact of the multibillion dollar computer gaming industry has been the development of cheap,
+        powerful hardware chips for rendering computer graphics. NVIDIA has developed two user level APIs
+        that allow access to more general purpose computing. OpenCL is a newer API that is vendor neutral,
+        but also supported by NVIDIA.
+      </para>
+    </content>
+    <sections>
+      <section>
+        <title>CUDA</title>
+        <content>
+          <para>
+            Compute Unified Device Architecture is a hardware and software abstraction for writing programs that
+            can run on one or more Graphics Processing Units. It is an abstraction that makes it possible to write
+            programs that can use runtime information to optimize resources available for parallel execution.
+          </para>
+          <para>
+            The execution model is called SIMT (single instruction, multiple theads) but
+            SKMT (single kernel, multiple threads) is more descriptive. This is similar
+            to SIMD (single instruction, multiple data) but far more flexible.
+            A kernel is a function that is launched by the host CPU and executes in many threads
+            on the device GPU. The invocation allows the thread heirarchy to be specified at
+            runtime that best suites the physical devices available. Instead of a single instruction,
+            a kernel executes in each thread on the same global data. Unfortunately accessing global
+            memory is two orders of magnitude slower (~500 clock cycles) than accessing shared memory
+            and shared memory is only shared within each block.
+          </para>
+          <para>
+            A typical program copies host memory to the device, executes one or more kernels, and copies
+            the results in device memory back to the host. There is implicit thread synchronization between
+            kernel calls and explicit thread synchronization on the device via the __syncthreads() call.
+            To explicitly synchronize on the host, use <codeInline>cudaThreadSynchronize</codeInline>.
+          </para>
+        </content>
+      </section>
+    </sections>
+  </section>
+  <section>
+    <title>Introduction</title>
+    <content>
+      <para>
+        To write effective code it is necessary to know something about the abstraction developed
+        by NVIDIA to execute code on their GPU's. The abstraction is not very far from the silicon
+        so the next few sections are fairly technical.
+      </para>
+    </content>
+    <sections>
+      <section>
+        <title>Thread Hierarchy</title>
+        <content>
+          <para>
+            Threads are grouped into blocks. Blocks are grouped into grids. Blocks of threads
+            can be 1, 2, or 3 dimensional arrays and grids of blocks can be 1 or 2 dimensional.
+            Thread blocks are required to execute independently: It must be possible to execute
+            them in any order, in parallel or in series.
+            This independence requirement allows thread blocks to be scheduled in any order across
+            any number of cores, enabling programmers to write scalable code.
+            It is also possible to share low latency data within blocks, have thread local data,
+            and allocate per-thread registers. A block must be executed on a single multiprocessor.
+          </para>
+        </content>
+      </section>
+
+      <section>
+        <title>Kernels</title>
+        <content>
+          <para>
+            Kernels are nonrecursive C functions having no static variables that return void.
+            They are defined using the keyword __global__.
+          </para>
+            <quote>
+              <![CDATA[
+              __global__ void func(params) { body }
+              ]]>
+            </quote>
+          <para>
+            and invoked as
+          </para>
+            <quote>
+              <![CDATA[
+              func<<<Dg,Db,Ns>>>(params)
+              ]]>
+        </quote>
+          <para>
+            where
+          </para>
+          <table>
+            <row>
+              <entry>
+                <para>Dg</para>
+              </entry>
+              <entry>
+                <para>is a dim3 grid dimension</para>
+              </entry>
+            </row>
+            <row>
+              <entry>
+                <para>Db</para>
+              </entry>
+              <entry>
+                <para>is a dim3 block dimension</para>
+              </entry>
+            </row>
+            <row>
+              <entry>
+                <para>Ns</para>
+              </entry>
+              <entry>
+                <para>is size_t bytes of dynamic shared memory per block (defaults to 0)</para>
+              </entry>
+            </row>
+          </table>
+        </content>
+      </section>
+      <!-- Memory
+Types of Device Memory
+The table below summarizes the types of memory available on the device.
+
+Type Speed Visibility Lifetime 
+Register Fastest Thread Thread 
+Shared Fast Block Block 
+Local Slow Thread Thread 
+Global Slow Both Application 
+
+Register
+Each thread has its own set of up to 128 registers. Use the CUDA occupancy calculator (and empirical testing) to determine the best kernel launch configuration.
+
+Shared
+When a kernel is executed, the third argument inside the triple angle brackets, Ns, specifies how much shared memory to be allocated to each block. It is contiguous memory and is accessed in a kernel as shown below.
+
+
+__global__ void func(params)
+{
+    extern __shared__ float shared_data[];
+    ...
+
+ This is effectively equivalent to floatshared_data[Ns/sizeof(float)];
+
+Local
+Local memory is not physically local. It gets carved out of global memory and has the same access speed.
+
+Global
+This memory is visible to all blocks and threads and is marked with the keyword __device__. It is not visible from the host.
+
+-->
+
+    </sections>
+  </section>
+  <relatedTopics></relatedTopics>
+</developerConceptualDocument>
